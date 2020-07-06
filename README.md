@@ -10,12 +10,12 @@ populating dependent fields that formula includes.
 
 
 ## References
--[Creating new fake](#Create new fake)  
--[Populating fields](#Populating fields)  
--[Populating RecordType](#Populating RecordType)  
--[Populating parent](#Populating Parent)  
--[Populating child](#Populating Child)  
--[Populating children](#Populating Children)  
+-[Creating new fake](#Creating-new-fake)  
+-[Populating fields](#Populating-fields)  
+-[Populating RecordType](#Populating-RecordType)  
+-[Populating parent](#Populating-parent)  
+-[Populating child](#Populating-child)  
+-[Populating children](#Populating-children)  
 -[Results](#Results)  
 
 
