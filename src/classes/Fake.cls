@@ -112,6 +112,28 @@ public class Fake {
 		return this;
 	}
 
+	public SObject build() {
+		//add children
+		this.fieldValByName.putAll(this.getChildrenToBuild());
+		//add parents
+		this.fieldValByName.putAll(this.getParentsToBuild());
+
+		String serializedSObject = JSON.serialize(this.fieldValByName);
+		return (SObject) JSON.deserialize(serializedSObject, Type.forName(sobjType.getDescribe().getName()));
+	}
+
+	public Fake preview() {
+		System.debug('\nPreview => ' + this);
+		return this;
+	}
+
+	public override String toString() {
+		return 'Fake SObjectType: ' + this.sobjType.getDescribe().getName() +
+			' , relationshipName : ' + this.relationshipName +
+			' , fieldValByName : ' + JSON.serializePretty(this.fieldValByName) +
+			' , parentFakeByLookupName : ' + this.parentFakeByLookupName;
+	}
+
 	private Fake putAttributes() {
 		this.fieldValByName.put(
 			'attributes'
@@ -149,28 +171,6 @@ public class Fake {
 		} else {
 			this.fakeChildrenByParentRelationshipName.put(parentRelationshipName, new FakeChildren(childRelationshipName, child));
 		}
-	}
-
-	public SObject build() {
-		//add children
-		this.fieldValByName.putAll(this.getChildrenToBuild());
-		//add parents
-		this.fieldValByName.putAll(this.getParentsToBuild());
-
-		String serializedSObject = JSON.serialize(this.fieldValByName);
-		return (SObject) JSON.deserialize(serializedSObject, Type.forName(sobjType.getDescribe().getName()));
-	}
-
-	public Fake preview() {
-		System.debug('\nPreview => ' + this);
-		return this;
-	}
-
-	public override String toString() {
-		return 'Fake SObjectType: ' + this.sobjType.getDescribe().getName() +
-			' , relationshipName : ' + this.relationshipName +
-			' , fieldValByName : ' + JSON.serializePretty(this.fieldValByName) +
-			' , parentFakeByLookupName : ' + this.parentFakeByLookupName;
 	}
 
 	private Map<String, Object> getChildrenToBuild() {
