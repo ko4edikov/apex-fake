@@ -6,7 +6,9 @@ The class helps to create fake object records without insert into the database.
 It's helpful if you use Stub API for unit test creation.
 
 The benefit of an object mocking is the ability to populate formula fields without 
-populating dependent fields that formula includes.
+populating dependent fields that formula includes. You can also create a record with 
+filled parents and children.
+
 
 
 ## References
