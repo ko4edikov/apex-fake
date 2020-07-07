@@ -3,7 +3,7 @@ public class Fake {
 	private SObjectType sobjType;
 	private String relationshipName = '';
 	private Map<String, Object> fieldValByName = new Map<String, Object>();
-	private Map<String, FakeChildren> fakeChildrenByParentRelationshipName = new Map<String, FakeChildren>();
+	private Map<ChildRelationshipKey, FakeChildren> fakeChildrenByChildRelationshipKey = new Map<ChildRelationshipKey, FakeChildren>();
 	private Map<String, Fake> parentFakeByLookupName = new Map<String, Fake>();
 
 	private Map<String, ChildRelationship> childRelationshipByName {
@@ -128,10 +128,12 @@ public class Fake {
 	}
 
 	public override String toString() {
-		return 'Fake SObjectType: ' + this.sobjType.getDescribe().getName() +
-			' , relationshipName : ' + this.relationshipName +
-			' , fieldValByName : ' + JSON.serializePretty(this.fieldValByName) +
-			' , parentFakeByLookupName : ' + this.parentFakeByLookupName;
+		return 'Fake SObjectType: ' + this.sobjType.getDescribe().getName() + ',\n' +
+			' relationshipName : ' + this.relationshipName + ',\n' +
+			' fieldValByName : ' + JSON.serializePretty(this.fieldValByName) + ',\n' +
+			' parentFakeByLookupName : ' + this.parentFakeByLookupName + ',\n' +
+			' fakeChildrenByChildRelationshipKey : ' + this.fakeChildrenByChildRelationshipKey
+			;
 	}
 
 	private Fake putAttributes() {
@@ -166,21 +168,22 @@ public class Fake {
 	}
 
 	private void populateFakeChildrenMap(String parentRelationshipName, String childRelationshipName, Fake child) {
-		if (this.fakeChildrenByParentRelationshipName.containsKey(parentRelationshipName)) {
-			this.fakeChildrenByParentRelationshipName.get(parentRelationshipName).addFakeChild(child);
+		ChildRelationshipKey key = new ChildRelationshipKey(childRelationshipName, parentRelationshipName);
+		if (this.fakeChildrenByChildRelationshipKey.containsKey(key)) {
+			this.fakeChildrenByChildRelationshipKey.get(key).addFakeChild(child);
 		} else {
-			this.fakeChildrenByParentRelationshipName.put(parentRelationshipName, new FakeChildren(childRelationshipName, child));
+			this.fakeChildrenByChildRelationshipKey.put(key, new FakeChildren(childRelationshipName, child));
 		}
 	}
 
 	private Map<String, Object> getChildrenToBuild() {
 		Map<String, Object> childByRelationshipName = new Map<String, Object>();
-		for (String parentRelName : this.fakeChildrenByParentRelationshipName.keySet()) {  // Map<String, FakeChildren>
+		for (ChildRelationshipKey key : this.fakeChildrenByChildRelationshipKey.keySet()) {  // Map<String, FakeChildren>
 			Map<String, Object> fieldValByName = new Map<String, Object>();
 			List<Map<String, Object>> children = new List<Map<String, Object>>();
-			FakeChildren fakeChildren = this.fakeChildrenByParentRelationshipName.get(parentRelName);
+			FakeChildren fakeChildren = this.fakeChildrenByChildRelationshipKey.get(key);
 			for (Fake fakeChild : fakeChildren.fakes) {
-				this.putParentId(parentRelName, fakeChild);
+				this.putParentId(key.parentFieldNameForChild, fakeChild);
 				children.add(fakeChild.fieldValByName);
 			}
 			fieldValByName.put('totalSize', children.size());
@@ -242,6 +245,16 @@ public class Fake {
 			throw new InvalidFieldException(this.sobjType + ' has not field with name ' + '\'' + fieldName + '\'');
 		}
 		return field;
+	}
+
+	private class ChildRelationshipKey {
+		private String childRelationship;
+		private String parentFieldNameForChild;
+
+		private ChildRelationshipKey(String childRelationship, String parentFieldNameForChild) {
+			this.childRelationship = childRelationship;
+			this.parentFieldNameForChild = parentFieldNameForChild;
+		}
 	}
 
 	private class FakeId {
