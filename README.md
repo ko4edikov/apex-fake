@@ -9,7 +9,11 @@ The benefit of an object mocking is the ability to populate formula fields witho
 populating dependent fields that formula includes. You can also create a record with 
 filled parents and children.
 
+## Installing
 
+Click on the button below to deploy the component to the org  
+
+[![Deploy](https://raw.githubusercontent.com/afawcett/githubsfdeploy/master/deploy.png)](https://githubsfdeploy.herokuapp.com)
 
 ## References
 - [Creating new fake](#Creating-new-fake)  
