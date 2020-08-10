@@ -117,7 +117,6 @@ public class Fake {
 		this.fieldValByName.putAll(this.getChildrenToBuild());
 		//add parents
 		this.fieldValByName.putAll(this.getParentsToBuild());
-
 		String serializedSObject = JSON.serialize(this.fieldValByName);
 		return (SObject) JSON.deserialize(serializedSObject, Type.forName(sobjType.getDescribe().getName()));
 	}
@@ -255,6 +254,20 @@ public class Fake {
 			this.childRelationship = childRelationship;
 			this.parentFieldNameForChild = parentFieldNameForChild;
 		}
+
+		private Boolean equals(Object obj) {
+			if (obj instanceof ChildRelationshipKey) {
+				ChildRelationshipKey chrKey = (ChildRelationshipKey) obj;
+				return this.childRelationship.equalsIgnoreCase(chrKey.childRelationship) &&
+					this.parentFieldNameForChild.equalsIgnoreCase(chrKey.parentFieldNameForChild);
+			}
+			return false;
+		}
+
+		private Integer hashCode() {
+			return (31 * this.childRelationship.hashCode()) ^ (this.parentFieldNameForChild.hashCode());
+		}
+
 	}
 
 	private class FakeId {
