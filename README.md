@@ -256,5 +256,5 @@ Also, you can use putParent() to create a fake RecordType if you need, then fake
 ### License
 MIT
 
-###Thanks
+### Thanks
 Thanks for the inspiration and advice to [Alex 4an70m] (https://github.com/4an70m)
