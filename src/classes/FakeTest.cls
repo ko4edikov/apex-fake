@@ -18,11 +18,12 @@ private class FakeTest {
 		String rtDevName = 'fakeDevName';
 		try{
 			Account acc = (Account) new Fake(Account.class)
-				.putRecordTypeByDevName(rtDevName)
+				.putRecordTypeByDeveloperName(rtDevName)
 				.build();
 
 		} catch(Exception e) {
-			System.assertEquals('RT with Developer Name ' + '\'' + rtDevName + '\'' + ' doesn\'t exist for SObject: ' + Account.class, e.getMessage());
+			System.assertEquals('Fake.FakeException', e.getTypeName());
+			System.assertEquals('No RecordType with DeveloperName ' + rtDevName + ' found for ' + Account.class, e.getMessage());
 		}
 	}
 
@@ -35,8 +36,8 @@ private class FakeTest {
 				.build();
 
 		} catch(Exception e) {
-			System.assertEquals('Fake.InvalidRecordTypeException', e.getTypeName());
-			System.assertEquals('RT with Name ' + '\'' + rtName + '\'' + ' doesn\'t exist for SObject: ' + Account.class, e.getMessage());
+			System.assertEquals('Fake.FakeException', e.getTypeName());
+			System.assertEquals('No RecordType with Name ' + rtName + ' found for ' + Account.class, e.getMessage());
 		}
 	}
 
@@ -56,8 +57,8 @@ private class FakeTest {
 				.putField(fieldName, 'Test Name')
 				.build();
 		} catch (Exception e) {
-			System.assertEquals('Fake.InvalidFieldException', e.getTypeName());
-			System.assertEquals(Account.class + ' has not field with name ' + '\'' + fieldName + '\'', e.getMessage());
+			System.assertEquals('Fake.FakeException', e.getTypeName());
+			System.assertEquals('No field ' + fieldName + ' found on the ' + Account.class, e.getMessage());
 		}
 	}
 
@@ -73,6 +74,7 @@ private class FakeTest {
 	private static void putParentWithFakeArgument_PositiveTest() {
 		Contact cont = (Contact) new Fake(Contact.class)
 			.putParent('AccountId', new Fake(Account.class))
+			.preview()
 			.build();
 		System.assertNotEquals(null, cont.Account.Id);
 	}
@@ -83,10 +85,12 @@ private class FakeTest {
 		try {
 			Contact cont = (Contact) new Fake(Contact.class)
 				.putParent(fieldName, new Fake(Account.class))
+				.preview()
 				.build();
 		} catch( Exception e) {
-			System.assertEquals('Fake.InvalidFieldException', e.getTypeName());
-			System.assertEquals('Field with name ' + '\'' + fieldName + '\' is not a lookup field for SObject ' + Contact.class, e.getMessage());
+			System.debug(e.getStackTraceString());
+			System.assertEquals('Fake.FakeException', e.getTypeName());
+			System.assertEquals(fieldName + ' is not a lookup field for ' + Contact.class, e.getMessage());
 		}
 	}
 
@@ -98,8 +102,9 @@ private class FakeTest {
 				.putParent(fieldName, new Fake(Account.class))
 				.build();
 		} catch( Exception e) {
-			System.assertEquals('Fake.InvalidFieldException', e.getTypeName());
-			System.assertEquals(Contact.class + ' has not field with name ' + '\'' + fieldName + '\'', e.getMessage());
+			System.assertEquals('Fake.FakeException', e.getTypeName());
+			System.assertEquals('No field ' + fieldName + ' found on the ' + Contact.class , e.getMessage());
+//			System.assertEquals(Contact.class + ' has not field with name ' + '\'' + fieldName + '\'', e.getMessage());
 		}
 	}
 
@@ -119,8 +124,8 @@ private class FakeTest {
 				.putParent(fieldName, new Fake(Account.class).build())
 				.build();
 		} catch( Exception e) {
-			System.assertEquals('Fake.InvalidFieldException', e.getTypeName());
-			System.assertEquals('Field with name ' + '\'' + fieldName + '\' is not a lookup field for SObject ' + Contact.class, e.getMessage());
+			System.assertEquals('Fake.FakeException', e.getTypeName());
+			System.assertEquals(fieldName + ' is not a lookup field for ' + Contact.class, e.getMessage());
 		}
 	}
 
@@ -132,8 +137,8 @@ private class FakeTest {
 				.putParent(fieldName, new Fake(Account.class).build())
 				.build();
 		} catch( Exception e) {
-			System.assertEquals('Fake.InvalidFieldException', e.getTypeName());
-			System.assertEquals(Contact.class + ' has not field with name ' + '\'' + fieldName + '\'', e.getMessage());
+			System.assertEquals('Fake.FakeException', e.getTypeName());
+			System.assertEquals('No field ' + fieldName + ' found on the ' + Contact.class, e.getMessage());
 		}
 	}
 
@@ -154,8 +159,8 @@ private class FakeTest {
 				.putChild(childRelationshipName, new Fake(Contact.class))
 				.build();
 		}catch (Exception e) {
-			System.assertEquals('Fake.InvalidChildRelationshipException', e.getTypeName());
-			System.assertEquals(Account.class + ' doesn\'t contain Child Relationship with name ' + '\'' + childRelationshipName + '\'', e.getMessage());
+			System.assertEquals('Fake.FakeException', e.getTypeName());
+			System.assertEquals('No relationship ' + childRelationshipName + ' found for ' + Account.class, e.getMessage());
 		}
 	}
 
@@ -176,8 +181,8 @@ private class FakeTest {
 				.putChild(childRelationshipName, new Fake(Contact.class).build())
 				.build();
 		}catch (Exception e) {
-			System.assertEquals('Fake.InvalidChildRelationshipException', e.getTypeName());
-			System.assertEquals(Account.SObjectType + ' doesn\'t contain Child Relationship with name ' + '\'' + childRelationshipName + '\'', e.getMessage());
+			System.assertEquals('Fake.FakeException', e.getTypeName());
+			System.assertEquals('No relationship ' + childRelationshipName + ' found for ' + Account.class, e.getMessage());
 		}
 	}
 

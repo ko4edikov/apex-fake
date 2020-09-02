@@ -1,304 +1,361 @@
+/**
+* <p>Class for creating fake records and ability to populating parent and child records</p>
+*/
 public class Fake {
-	private static FakeId fakeId = new FakeId();
-	private SObjectType sobjType;
-	private String relationshipName = '';
-	private Map<String, Object> fieldValByName = new Map<String, Object>();
-	private Map<ChildRelationshipKey, FakeChildren> fakeChildrenByChildRelationshipKey = new Map<ChildRelationshipKey, FakeChildren>();
-	private Map<String, Fake> parentFakeByLookupName = new Map<String, Fake>();
+	private final static FakeIdFactory ID_FACTORY = new FakeIdFactory();
 
-	private Map<String, ChildRelationship> childRelationshipByName {
-		get {
-			if (childRelationshipByName == null) {
-				childRelationshipByName = this.getChildRelationshipByName();
-			}
-			return childRelationshipByName;
-		}
-		set;
-	}
+	private final SObjectType sObjectType;
+	public final Map<String, Object> values;
+	private final Id fakeId;
 
-	private Map<String, RecordTypeInfo> rtInfoByName {
-		get {
-			if (rtInfoByName == null) {
-				rtInfoByName = this.sobjType.getDescribe().getRecordTypeInfosByName();
-			}
-			return rtInfoByName;
-		}
-		set;
-	}
-
-	private Map<String, RecordTypeInfo> rtInfoByDevName {
-		get {
-			if (rtInfoByDevName == null) {
-				rtInfoByDevName = this.sobjType.getDescribe().getRecordTypeInfosByDeveloperName();
-			}
-			return rtInfoByDevName;
-		}
-		set;
-	}
-
-	public Fake(Type type) {
+	/**
+	* <p>Construct fake record from class type</p>
+	* <p>Usage</p>
+	* <p><code>new Fake(Account.class)</p>
+	*
+	* @param type type of Object to fake
+	*/
+	public Fake(final Type type) {
 		this(((SObject)type.newInstance()).getSObjectType());
 	}
 
-	public Fake(SObjectType sobjType) {
-		this.sobjType = sobjType;
-		this.putAttributes();
-		this.putId();
+	/**
+	* <p>Construct fake record from SObject type</p>
+	* <p>Usage</p>
+	* <p><code>new Fake(Account.getSObjectType())</p>
+	*
+	* @param sObjectType type of SObject to fake
+	*/
+	public Fake(final SObjectType sObjectType) {
+		this.sObjectType = sObjectType;
+		this.values = this.putAttributes();
+		this.fakeId = ID_FACTORY.generate(this.sObjectType);
+
+		this.putField('Id', this.fakeId);
 	}
 
-	private Fake(SObject sobj) {
-		this.sobjType = sobj.getSObjectType();
-		this.fieldValByName = sobj.getPopulatedFieldsAsMap().clone();
-		for (String relName : childRelationshipByName.keySet()) {
-			this.fieldValByName.remove(relName);
-		}
+	/**
+	* <p>Construct fake record from other SObject, copying field values</p>
+	* <p>Usage</p>
+	* <p><code>new SimpleFake(new Account(Name = 'test'))</p>
+	*
+	* @param record record of SObject to fake
+	*/
+	public Fake(final SObject record) {
+		this.sObjectType = record.getSObjectType();
+		this.values = record.getPopulatedFieldsAsMap().clone();
+		this.fakeId = ID_FACTORY.generate(this.sObjectType);
+
+		this.putField('Id', this.fakeId);
 	}
 
-	public Fake putRecordTypeByName(String rtName) {
-		RecordTypeInfo rtInfo = rtInfoByName.get(rtName);
+	/**
+	* <p>Adds a RecordType by Name to current fake</p>
+	*
+	* @param name RecordType.Name for current Fake
+	 *
+	 * @return this Fake.class record
+	*/
+	public Fake putRecordTypeByName(final String name) {
+		final RecordTypeInfo rtInfo = this.sObjectType.getDescribe().getRecordTypeInfosByName().get(name);
 		if (rtInfo == null) {
-			throw new InvalidRecordTypeException('RT with Name ' + '\'' + rtName + '\'' + ' doesn\'t exist for SObject: ' + this.sobjType);
+			throw new FakeException('No RecordType with Name ' + name + ' found for ' + this.sObjectType);
 		}
-		this.putRecordType(rtInfo);
-		return this.putField('RecordTypeId', rtInfo.getRecordTypeId());
+		return this.putRecordType(rtInfo);
 	}
 
-	public Fake putRecordTypeByDevName(String rtDevName) {
-		RecordTypeInfo rtInfo = rtInfoByDevName.get(rtDevName);
+	/**
+	* <p>Adds a RecordType by DeveloperName to current fake</p>
+	*
+	* @param developerName RecordType.DeveloperName for current Fake
+	 *
+	 * @return this Fake.class record
+	*/
+	public Fake putRecordTypeByDeveloperName(final String developerName) {
+		final RecordTypeInfo rtInfo = this.sObjectType.getDescribe().getRecordTypeInfosByDeveloperName().get(developerName);
 		if (rtInfo == null) {
-			throw new InvalidRecordTypeException('RT with Developer Name ' + '\'' + rtDevName + '\'' + ' doesn\'t exist for SObject: ' + this.sobjType);
+			throw new FakeException('No RecordType with DeveloperName ' + developerName + ' found for ' + this.sObjectType);
 		}
-		this.putRecordType(rtInfo);
-		return this.putField('RecordTypeId', rtInfo.getRecordTypeId());
+		return this.putRecordType(rtInfo);
 	}
 
-	public Fake putField(String fieldName, Object fieldValue) {
-		this.checkAndGetSObjectField(fieldName);
-		this.fieldValByName.put(fieldName, fieldValue);
+	/**
+	* <p>Adds a field to current fake</p>
+	*
+	* @param field field name
+	* @param value field value
+	 *
+	 * @return this Fake.class record
+	*/
+	public Fake putField(final String field, final Object value) {
+		final SObjectField sObjectField = this.getSObjectField(field);
+		return this.putField(sObjectField, value);
+	}
+
+	/**
+	* <p>Adds a field to current fake</p>
+	*
+	* @param sObjectField field token e.g. Account.Name
+	* @param value field value
+	 *
+	 * @return this Fake.class record
+	*/
+	public Fake putField(final SObjectField sObjectField, final Object value) {
+		this.values.put('' + sObjectField, value);
 		return this;
 	}
 
-	public Fake putField(SObjectField field, Object fieldValue) {
-		String fieldName = field.getDescribe().getName();
-		return putField(fieldName, fieldValue);
+	/**
+	* <p>Adds a parent fake record to this fake record</p>
+	*
+	* @param field name of the parent field e.g. 'AccountId' for Contact
+	* @param parentRecord parent record
+	*
+	* @return this Fake.class record
+	*/
+	public Fake putParent(final String field, final SObject parentRecord) {
+		return this.putParent(field, new Fake(parentRecord));
 	}
 
-	public Fake putParent(String lookupFieldName, SObject sobj) {
-		return this.putParent(lookupFieldName, new Fake(sobj));
+	/**
+	* <p>Adds a parent fake record to this fake record</p>
+	*
+	* @param field name of the parent field e.g. 'AccountId' for Contact
+	* @param parentFake parent fake record
+	*
+	* @return this Fake.class record
+	*/
+	public Fake putParent(final String field, final Fake parentFake) {
+		final SObjectField sObjectField = this.getSObjectField(field);
+		return this.putParent(sObjectField, parentFake);
 	}
 
-	public Fake putParent(String lookupFieldName, Fake parentFake) {
-		this.checkAndGetParentRelationshipName(lookupFieldName);
-		this.parentFakeByLookupName.put(lookupFieldName, parentFake);
+	/**
+	* <p>Adds a parent fake record to this fake record</p>
+	*
+	* @param sObjectField name of the parent field e.g. Account.AccountId for Contact
+	* @param parentFake parent fake record
+	*
+	* @return this Fake.class record
+	*/
+	public Fake putParent(final SObjectField sObjectField, final Fake parentFake) {
+		final SObject parent = parentFake.build();
+
+		final String parentLookup = sObjectField.getDescribe().getRelationshipName();
+		final String parentLookupId = sObjectField.getDescribe().getName();
+		if (parentLookup == null) {
+			throw new FakeException(sObjectField + ' is not a lookup field for ' + this.sObjectType);
+		}
+		this.values.put(parentLookupId, parent.Id);
+		this.values.put(parentLookup, parent);
 		return this;
 	}
 
-	public Fake putChildren(String childRelationshipName, List<SObject> sObjects) {
-		for (SObject sobj : sObjects) {
-			this.putChild(childRelationshipName, sobj);
+	/**
+	* <p>Adds a list of fake child record to this fake record</p>
+	*
+	* @param relationshipName relationship name for children
+	* @param childFakes list of child fakes
+	*
+	* @return this Fake.class record
+	*/
+	public Fake putChildren(final String relationshipName, final List<Fake> childFakes) {
+		try {
+			final ChildRelationship childRelationship = this.getChildRelationship(relationshipName);
+			final String childLookupName = '' + childRelationship.getField();
+			final Map<String, Object> builtChildren = new FakeChildren(childFakes).build(childLookupName, this.fakeId);
+
+			this.values.put(relationshipName, builtChildren);
+		} catch (Exception ex) {
+			throw new FakeException('No relationship ' + relationshipName + ' found for ' + this.sObjectType);
 		}
 		return this;
 	}
 
-	public Fake putChild(String childRelationshipName, SObject sobj) {
-		this.putChild(childRelationshipName, new Fake(sobj));
+	/**
+	* <p>Adds a list of fake child record to this fake record</p>
+	*
+	* @param relationshipName relationship name for children
+	* @param records list of child SObject records
+	*
+	* @return this Fake.class record
+	*/
+	public Fake putChildren(final String relationshipName, final List<SObject> records) {
+		for (SObject record : records) {
+			this.putChild(relationshipName, record);
+		}
 		return this;
 	}
 
-	public Fake putChild(String childRelationshipName, Fake childFake) {
-		this.checkAndGetChildRelationship(childRelationshipName);
-		String parentRelationshipName = this.getParentFieldFromChildRelationship(childRelationshipName);
-		this.populateFakeChildrenMap(parentRelationshipName, childRelationshipName, childFake);
+	/**
+	* <p>Adds a fake child record to this fake record</p>
+	*
+	* @param relationshipName relationship name for children
+	* @param childFake child fake
+	*
+	* @return this Fake.class record
+	*/
+	public Fake putChild(final String relationshipName, final Fake childFake) {
+		if ( ! this.values.containsKey(relationshipName)) {
+			return this.putChildren(relationshipName, new List<Fake>{childFake});
+		}
+		final Map<String, Object> children =  (Map<String, Object>) this.values.get(relationshipName);
+		((List<Object>)(children.get('records'))).add(childFake.build());
+		children.put('totalSize', (Integer) children.get('totalSize') + 1);
 		return this;
 	}
 
+	/**
+	* <p>Adds a fake child record to this fake record</p>
+	*
+	* @param relationshipName relationship name for children
+	* @param record child SObject record
+	*
+	* @return this Fake.class record
+	*/
+	public Fake putChild(final String relationshipName, final SObject record) {
+		this.putChild(relationshipName, new Fake(record));
+		return this;
+	}
+
+	/**
+	* <p>Performs final building of the fake object to SObject</p>
+	*
+	* @return built SObject
+	*/
 	public SObject build() {
-		//add children
-		this.fieldValByName.putAll(this.getChildrenToBuild());
-		//add parents
-		this.fieldValByName.putAll(this.getParentsToBuild());
-		String serializedSObject = JSON.serialize(this.fieldValByName);
-		return (SObject) JSON.deserialize(serializedSObject, Type.forName(sobjType.getDescribe().getName()));
+		try {
+			final String jsonifiedSObject = JSON.serialize(this.values);
+			return (SObject) JSON.deserialize(jsonifiedSObject, Type.forName('' + this.sObjectType));
+		} catch (Exception ex) {
+			throw new FakeException(ex);
+		}
 	}
 
 	public Fake preview() {
-		System.debug('\nPreview => ' + this);
+		System.debug('\n Preview => ' + this);
 		return this;
 	}
 
 	public override String toString() {
-		return 'Fake SObjectType: ' + this.sobjType.getDescribe().getName() + ',\n' +
-			' relationshipName : ' + this.relationshipName + ',\n' +
-			' fieldValByName : ' + JSON.serializePretty(this.fieldValByName) + ',\n' +
-			' parentFakeByLookupName : ' + this.parentFakeByLookupName + ',\n' +
-			' fakeChildrenByChildRelationshipKey : ' + this.fakeChildrenByChildRelationshipKey
+		return 'SObjectType: ' + this.sObjectType + ',\n' +
+			' fieldValByName : ' + this.values + ',\n' +
+			' fakeId : ' + this.fakeId + ',\n'
 			;
 	}
 
-	private Fake putAttributes() {
-		this.fieldValByName.put(
-			'attributes'
-			, new Map<String, String>{
-				'type' => this.sobjType.getDescribe().getName()
+	/**
+	* <p>Retrieves a child relationship for the relationship name of current SObject type</p>
+	*
+	* @param relationshipName name of the relationship between two SObjects, e.g Account -> (relName: Contacts) <- [Contact]
+	*
+	* @return an instance Schema.ChildRelationship.class
+	*/
+	private ChildRelationship getChildRelationship(final String relationshipName) {
+		for (ChildRelationship relationship : this.sObjectType.getDescribe().getChildRelationships()) {
+			if(relationship.getRelationshipName() == relationshipName) {
+				return relationship;
+			}
+		}
+		return null;
+	}
+
+	/**
+	* <p>Sets up a required type attribute to the fake record</p>
+	*
+	* @return new values for fake object
+	*/
+	private Map<String, Object> putAttributes() {
+		final Map<String, Object> attributes = new Map<String, Object>();
+		attributes.put(
+			'attributes' , new Map<String, String>{
+				'type' => '' + this.sObjectType
 			});
 
+		return attributes;
+	}
+
+	/**
+	* <p>Adds record type as parent with populated DeveloperName, Name and Id to current fake</p>
+	*
+	* @param rtInfo name of the relationship between two SObjects, e.g Account -> (relName: Contacts) <- [Contact]
+	*
+	* @return this Fake.class record
+	*/
+	private Fake putRecordType(final RecordTypeInfo rtInfo) {
+		final Fake fake = new Fake(RecordType.class)
+			.putField('DeveloperName', rtInfo.getDeveloperName())
+			.putField('Name', rtInfo.getName())
+			.putField('Id', rtInfo.getRecordTypeId());
+		this.putParent('RecordTypeId', fake);
 		return this;
 	}
 
-	private Fake putId() {
-		if ( ! this.fieldValByName.containsKey('Id')) {
-			putField('Id', fakeId.generate(this.sobjType));
-		}
-		return this;
+	/**
+	* <p>Retrieves SObjectField by field name from current SObjectType</p>
+	* <p>If field doesn't exist throws an error 'No field <fieldName> found on the <sobjectType>' </p>
+	*
+	* @param field name of the relationship between two SObjects, e.g Account -> (relName: Contacts) <- [Contact]
+	*
+	* @return an instance Schema.SObjectField.class
+	*/
+	private SObjectField getSObjectField(final String field) {
+		this.checkSObjectField(field);
+		return this.sObjectType.getDescribe().fields.getMap().get(field);
 	}
 
-	private Fake putRecordType(RecordTypeInfo rtInfo) {
-		this.fieldValByName.put('RecordType', new Map<String, Object> {
-			'attributes' => new Map<String, Object>{ 'type' => 'RecordType' }
-			,	'Id' => rtInfo.getRecordTypeId()
-			,	'DeveloperName' => rtInfo.getDeveloperName()
-			,	'Name' => rtInfo.getName()
-		});
-		return this;
-	}
-
-	private void putParentId(String parentFieldName, Fake childFake) {
-		childFake.putField(parentFieldName, this.fieldValByName.get('Id'));
-	}
-
-	private void populateFakeChildrenMap(String parentRelationshipName, String childRelationshipName, Fake child) {
-		ChildRelationshipKey key = new ChildRelationshipKey(childRelationshipName, parentRelationshipName);
-		if (this.fakeChildrenByChildRelationshipKey.containsKey(key)) {
-			this.fakeChildrenByChildRelationshipKey.get(key).addFakeChild(child);
-		} else {
-			this.fakeChildrenByChildRelationshipKey.put(key, new FakeChildren(childRelationshipName, child));
-		}
-	}
-
-	private Map<String, Object> getChildrenToBuild() {
-		Map<String, Object> childByRelationshipName = new Map<String, Object>();
-		for (ChildRelationshipKey key : this.fakeChildrenByChildRelationshipKey.keySet()) {  // Map<String, FakeChildren>
-			Map<String, Object> fieldValByName = new Map<String, Object>();
-			List<Map<String, Object>> children = new List<Map<String, Object>>();
-			FakeChildren fakeChildren = this.fakeChildrenByChildRelationshipKey.get(key);
-			for (Fake fakeChild : fakeChildren.fakes) {
-				this.putParentId(key.parentFieldNameForChild, fakeChild);
-				children.add(fakeChild.fieldValByName);
-			}
-			fieldValByName.put('totalSize', children.size());
-			fieldValByName.put('done', true);
-			fieldValByName.put('records', children);
-			childByRelationshipName.put(fakeChildren.childRelationshipName, fieldValByName);
-		}
-		return childByRelationshipName;
-	}
-
-	private Map<String, Object> getParentsToBuild() {
-		Map<String, Object> parentByRelationshipName = new Map<String, Object>();
-		for (String lookupFieldName : this.parentFakeByLookupName.keySet()) {
-			Fake parentFake = this.parentFakeByLookupName.get(lookupFieldName);
-			this.putField(lookupFieldName, (String) parentFake.fieldValByName.get('Id'));
-			if ( ! parentFake.parentFakeByLookupName.isEmpty()) {
-				parentFake.fieldValByName.putAll(parentFake.getParentsToBuild());
-			}
-			parentByRelationshipName.put(this.checkAndGetParentRelationshipName(lookupFieldName), parentFake.fieldValByName);
-		}
-		return parentByRelationshipName;
-	}
-
-	private String getParentFieldFromChildRelationship(String childRelationshipName) {
-		ChildRelationship relationship = this.checkAndGetChildRelationship(childRelationshipName);
-		return relationship.getField().getDescribe().getName();
-	}
-
-	private Map<String, ChildRelationship> getChildRelationshipByName() {
-		Map<String, ChildRelationship> childRelationshipByName = new Map<String, ChildRelationship>();
-		List<ChildRelationship> childRelationships = this.sobjType.getDescribe().getChildRelationships();
-		for (ChildRelationship relationship : childRelationships) {
-			childRelationshipByName.put(relationship.getRelationshipName(), relationship);
-		}
-		childRelationshipByName.remove(null);
-		return childRelationshipByName;
-	}
-
-	private ChildRelationship checkAndGetChildRelationship(String childRelationshipName) {
-		ChildRelationship relationship = this.childRelationshipByName.get(childRelationshipName);
-		if (relationship == null) {
-			throw new InvalidChildRelationshipException(this.sobjType + ' doesn\'t contain Child Relationship with name ' + '\'' + childRelationshipName + '\'');
-		}
-		return relationship;
-	}
-
-	private String checkAndGetParentRelationshipName(String fieldName) {
-		SObjectField field = this.checkAndGetSObjectField(fieldName);
-		if (field.getDescribe().getType() != DisplayType.REFERENCE) {
-			throw new InvalidFieldException('Field with name ' + '\'' + fieldName + '\' is not a lookup field for SObject ' + this.sobjType);
-		}
-		return field.getDescribe().getRelationshipName();
-	}
-
-	private SObjectField checkAndGetSObjectField(String fieldName) {
-		Map<String, SObjectField> fieldByName = this.sobjType.getDescribe().fields.getMap();
-		SObjectField field = fieldByName.get(fieldName);
-		if (field == null) {
-			throw new InvalidFieldException(this.sobjType + ' has not field with name ' + '\'' + fieldName + '\'');
-		}
-		return field;
-	}
-
-	private class ChildRelationshipKey {
-		private String childRelationship;
-		private String parentFieldNameForChild;
-
-		private ChildRelationshipKey(String childRelationship, String parentFieldNameForChild) {
-			this.childRelationship = childRelationship;
-			this.parentFieldNameForChild = parentFieldNameForChild;
-		}
-
-		private Boolean equals(Object obj) {
-			if (obj instanceof ChildRelationshipKey) {
-				ChildRelationshipKey chrKey = (ChildRelationshipKey) obj;
-				return this.childRelationship.equalsIgnoreCase(chrKey.childRelationship) &&
-					this.parentFieldNameForChild.equalsIgnoreCase(chrKey.parentFieldNameForChild);
-			}
-			return false;
-		}
-
-		private Integer hashCode() {
-			return (31 * this.childRelationship.hashCode()) ^ (this.parentFieldNameForChild.hashCode());
-		}
+	/**
+	* <p>Checks if field exists on current SObjectType</p>
+	* <p>and throws an error 'No field <fieldName> found on the <sobjectType>' if field doesn't exist</p>
+	*
+	* @param field name of the relationship between two SObjects, e.g Account -> (relName: Contacts) <- [Contact]
+	*/
+	private void checkSObjectField(final String field) {
+		if (this.sObjectType.getDescribe().fields.getMap().containsKey(field)) { return; }
+		throw new FakeException('No field ' + field + ' found on the ' + this.sObjectType);
 
 	}
 
-	private class FakeId {
+
+	/**
+	* Produces new fake Ids
+	*/
+	private class FakeIdFactory {
 		private Integer fakeIdCount = 0;
 		private final String ID_PATTERN = '000000000000';
 
-		private Id generate(SObjectType sobjType) {
+		private Id generate(final SObjectType sObjectType) {
 			fakeIdCount++;
-			String keyPrefix = sobjType.getDescribe().getKeyPrefix();
-			String fakeIdPrefix = ID_PATTERN.substring(0, 12 - fakeIdCount.format().length());
+			final String keyPrefix = sObjectType.getDescribe().getKeyPrefix();
+			final String fakeIdPrefix = ID_PATTERN.substring(0, 12 - fakeIdCount.format().length());
 			return Id.valueOf(keyPrefix + fakeIdPrefix + fakeIdCount);
 		}
 	}
 
-	private class FakeChildren {
-		private String childRelationshipName;
-		private List<Fake> fakes = new List<Fake>();
 
-		private FakeChildren(String childRelationshipName, Fake child) {
-			this.childRelationshipName = childRelationshipName;
-			this.fakes.add(child);
+	/**
+	* Contains a list of fake children and build them into a list of "real" children SObjects
+	*/
+	private class FakeChildren {
+		private List<Fake> childFakes = new List<Fake>();
+
+		private FakeChildren(final List<Fake> childFakes) {
+			this.childFakes = childFakes;
 		}
 
-		private void addFakeChild(Fake child) {
-			this.fakes.add(child);
+		public Map<String, Object> build(final String field, final Id parentId) {
+			final Map<String, Object> result = new Map<String, Object>{
+				'totalSize' => this.childFakes.size(),
+				'done' => true,
+				'records' => new List<SObject>()
+			};
+			for (Fake fake : this.childFakes) {
+				fake.putField(field, parentId);
+				((List<SObject>)(result.get('records'))).add(fake.build());
+			}
+			return result;
 		}
 	}
 
-	public abstract class FakeException extends Exception {}
-	public class InvalidRecordTypeException extends FakeException {}
-	public class InvalidChildRelationshipException extends FakeException {}
-	public class InvalidFieldException extends FakeException {}
-
+	public class FakeException extends Exception {}
 }

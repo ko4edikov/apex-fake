@@ -24,7 +24,8 @@ Click on the button below to deploy the component to the org
 - [Populating children](#Populating-children)  
 - [Results](#Results)  
 - [Examples](#Examples)
-
+- [License](#License)
+- [Thanks](#Thanks)
 
 
 ### Creating new fake
@@ -43,15 +44,16 @@ Click on the button below to deploy the component to the org
 
 
 ### Populating RecordType
-```apexpex
+```apex
     new Fake(Account.class).putRecordTypeByName('Account Record Type Name');
     new Fake(Account.class).putRecordTypeByDevName('Account_Record_Type_Developer_Name');
 
 ```
 If record type will not found the exception will be thrown:
 ```
-Fake.InvalidRecordTypeException: RT with Developer Name 'Account_Record_Type_Developer_Name' doesn't exist for SObject: Account
+Fake.FakeException: No RecordType with DeveloperName Account_Record_Type_Developer_Name found for Account
 ```
+
 ### Populating parent
 ```apex
     new Fake(Contact.class).putParent('AccountId', new Fake(Account.class));
@@ -59,11 +61,41 @@ Fake.InvalidRecordTypeException: RT with Developer Name 'Account_Record_Type_Dev
 
 ```
 
+Also, you can use putParent() to create a fake RecordType if you need, then fake id will be generated:
+```apex
+    Account account = (Account) new Fake(Account.class)
+    	.putParent('RecordTypeId', new Fake(RecordType.class)
+    		.putField(RecordType.DeveloperName, 'Fake_RecordType')
+    	).build();
+```
+```apex
+/**
+    {
+      "attributes" : {
+        "type" : "Account",
+        "url" : "/services/data/v49.0/sobjects/Account/001000000000001AAA"
+      },
+      "RecordType" : {
+        "attributes" : {
+          "type" : "RecordType",
+          "url" : "/services/data/v49.0/sobjects/RecordType/012000000000002AAA"
+        },
+        "Id" : "012000000000002AAA",
+        "DeveloperName" : "Fake_RecordType"
+      },
+      "RecordTypeId" : "012000000000002AAA",
+      "Id" : "001000000000001AAA"
+    }
+*/
+```
+
 ### Populating child
 ```apex
     new Fake(Account.class).putChild('Contacts', new Fake(Contact.class));
     new Fake(Account.class).putChild('Contacts', (Contact) new Fake(Contact.class).build());
 ```
+
+
 
 ### Populating children
 ```apex
@@ -126,7 +158,7 @@ Fake.InvalidRecordTypeException: RT with Developer Name 'Account_Record_Type_Dev
 ```
 ###### Result:
 ```apex
-/* 
+/** 
     cont => {
       "attributes" : {
         "type" : "Contact",
@@ -220,3 +252,9 @@ Fake.InvalidRecordTypeException: RT with Developer Name 'Account_Record_Type_Dev
 */
 
 ```
+
+### License
+MIT
+
+###Thanks
+Thanks for the inspiration and advice to [Alex 4an70m] (https://github.com/4an70m)
